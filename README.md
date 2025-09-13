@@ -16,19 +16,6 @@ This project is a **real-time decision support dashboard for train traffic contr
 - **Professional UI**: Sidebar navigation, gradient panels, shadows, modern buttons, and notifications.
 - **Expandable Architecture**: Easy integration with disruption, KPI, simulation, and training modules.
 
----
-
-## Folder Structure
-
-lib/
-├─ pages/
-│ ├─ dashboard_page.dart # Main dashboard screen
-│ ├─ disruption_page.dart # Disruption / notifications
-│ ├─ kpi_page.dart # KPI screen
-│ ├─ simulation_page.dart # Simulation module
-│ └─ training_page.dart # Training module
-├─ main.dart # Entry point
-pubspec.yaml # Dependencies
 
 ---
 
