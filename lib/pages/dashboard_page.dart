@@ -276,9 +276,9 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.lightbulb, color: Colors.white, size: 18),
+                        Icon(Icons.warning, color: Colors.white, size: 18),
                         SizedBox(width: 6),
-                        Text('AI SUGGESTIONS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        Text('2 Disruptions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   ),
@@ -289,7 +289,7 @@ class _DashboardPageState extends State<DashboardPage> {
                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('AI suggestion created')));
                     },
                     icon: Icon(Icons.autorenew),
-                    label: Text('Generate AI Suggestion'),
+                    label: Text('AI Route Suggestion'),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.black, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
                   ),
                 ],
@@ -492,7 +492,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                               _addSuggestion('Quick Hold Recommendation', 'Hold low-priority freight (demo)');
                                             },
                                             icon: Icon(Icons.add),
-                                            label: Text('Add Suggestion (demo)'),
+                                            label: Text('Log AI Suggestion'),
                                             style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.black, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
                                           )
                                         ],
