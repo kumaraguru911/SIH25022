@@ -1,108 +1,138 @@
-// lib/pages/dashboard_page.dart
+import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
-import 'dart:ui';
-import 'disruption_page.dart';
-import 'kpi_page.dart';
-import 'simulation_page.dart';
-import 'training_page.dart';
-import 'package:flutter/foundation.dart';
+// Data Models
+enum TrainDirection { UP, DOWN }
 
-// This file provides a professional dashboard focused on a section (Madras division).
-// Center panel: a circuit-board style interactive SectionMap (Chennai Central -> Katpadi).
-// Left panel: train list with actions.
-// Right panel: AI Decision Assistant with suggestion history.
+class SectionTrain {
+  final String id;
+  final String name;
+  double pos;
+  TrainDirection direction;
+  String status;
+  String eta;
+  int speed;
+  String loco;
+  int delay;
+  String currentSection;
 
+  SectionTrain({
+    required this.id,
+    required this.name,
+    required this.pos,
+    required this.direction,
+    required this.status,
+    required this.eta,
+    required this.speed,
+    required this.loco,
+    required this.delay,
+    required this.currentSection,
+  });
+}
+
+void main() {
+  runApp(const RailwayDashboardApp());
+}
+
+class RailwayDashboardApp extends StatelessWidget {
+  const RailwayDashboardApp({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Section Control',
+      theme: ThemeData(
+        fontFamily: 'Roboto',
+        primaryColor: _DashboardPageState.irPrimaryBlue,
+        scaffoldBackgroundColor: _DashboardPageState.dashboardBg,
+        cardTheme: CardTheme(
+          elevation: 4,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      home: const DashboardPage(),
+    );
+  }
+}
+
+// --- Dashboard Page ---
 class DashboardPage extends StatefulWidget {
   const DashboardPage({Key? key}) : super(key: key);
-
   @override
   _DashboardPageState createState() => _DashboardPageState();
 }
 
 class _DashboardPageState extends State<DashboardPage> {
-  // Mock KPI values
-  int activeTrains = 142;
-  int delayedTrains = 8;
-  double onTimePercent = 94.0;
+  // Professional & Indian Railways-inspired Color Palette
+  static const Color irPrimaryBlue = Color(0xFF0B2B4E);
+  static const Color irMaroon = Color(0xFFAA2C2B);
+  static const Color irGold = Color(0xFFFFCC33);
+  static const Color kpiGreen = Color(0xFF22C55E);
+  static const Color kpiRed = Color(0xFFDC2626);
+  static const Color kpiOrange = Color(0xFFF79E74);
+  static const Color dashboardBg = Color(0xFFF0F2F5);
+  static const Color cardColor = Colors.white;
+  static const Color textColor = Color(0xFF1E293B);
+  static const Color secondaryTextColor = Color(0xFF64748B);
 
-  // Suggestion history (mock)
-  List<Map<String, String>> suggestionHistory = [
-    {
-      "id": "S1",
-      "title": "Allow Rajdhani 12951 before Freight 93452",
-      "detail": "Rulebook priority + saves 12 mins",
-      "time": "10:02"
-    },
-    {
-      "id": "S2",
-      "title": "Hold Freight 2002 for 5 mins",
-      "detail": "Prevents cascading delay",
-      "time": "09:58"
-    },
+  // Data
+  bool online = true;
+  int activeTrains = 8;
+  // Map to hold train images. Make sure these paths are correct in your assets folder.
+final Map<String, String> _trainImages = {
+  'Chennai Mail': 'assets/chennai_central.jpg',
+  'Bangalore Mail': 'assets/bengaluru.jpg',
+  'Bangalore Express': 'assets/bengaluru.jpg',
+  'Sanghamitra Express': 'assets/sanghamitra.jpg',
+  'Brindavan Express': 'assets/bengaluru.jpg',
+  'Intercity Express': 'assets/mumbai.jpg',
+  'Mysuru Express': 'assets/Mysuru.jpg',
+  'Yercaud Express': 'assets/yercaud.jpg',
+  // Add other train names and their image paths here
+};
+  List<Map<String, dynamic>> alerts = [
+    {"level": "Critical", "title": "Track signal failure", "route": "MAS-KPD", "affected": ["12295", "12640"], "time": "17:30"},
+    {"level": "High", "title": "GOOTY–REN signal delay", "route": "GOOTY-REN", "affected": ["12657"], "time": "12:40"},
+    {"level": "Info", "title": "Maintenance scheduled", "route": "MAS", "affected": [], "time": "18:00"},
   ];
-
-  // Section trains - this will be used by SectionMap and animated (pos: 0..1)
   List<SectionTrain> sectionTrains = [
-  SectionTrain(
-    id: '12657',
-    name: 'Brindavan Express (12657)',
-    pos: 0.12,
-    direction: TrainDirection.UP,
-    status: 'Running On Time',
-    eta: '10:25'),
-  SectionTrain(
-    id: '12007',
-    name: 'Shatabdi Express (12007)',
-    pos: 0.42,
-    direction: TrainDirection.UP,
-    status: 'Delayed 5 min',
-    eta: '11:10'),
-  SectionTrain(
-    id: '12601',
-    name: 'MGR Chennai Mail (12601)',
-    pos: 0.64,
-    direction: TrainDirection.DOWN,
-    status: 'Running On Time',
-    eta: '12:05'),
-  SectionTrain(
-    id: '93452',
-    name: 'Freight Special',
-    pos: 0.85,
-    direction: TrainDirection.DOWN,
-    status: 'Running On Time',
-    eta: '12:20'),
-  // Branch train: pos 0..1 along the branch (0=start of branch, 1=end at TRT)
-  SectionTrain(
-    id: 'BRANCH1',
-    name: 'Branch Local',
-    pos: 0.0, // animate this from 0 to 1 for movement
-    direction: TrainDirection.UP,
-    status: 'Running On Branch',
-    eta: '11:45'),
+    SectionTrain(id: '12295', name: 'Sanghamitra Express', pos: 0.13, direction: TrainDirection.UP, status: 'On Time', eta: '13:18', speed: 110, loco: "WAP7-30159", delay: 0, currentSection: "MAS-AJJ"),
+    SectionTrain(id: '12640', name: 'Brindavan Express', pos: 0.24, direction: TrainDirection.UP, status: 'Delayed', eta: '17:28', speed: 100, loco: "WAP4-22673", delay: 13, currentSection: "AJJ-KPD"),
+    SectionTrain(id: '12657', name: 'Bangalore Mail', pos: 0.70, direction: TrainDirection.DOWN, status: 'Delayed', eta: '14:50', speed: 85, loco: "WAP7-30343", delay: 25, currentSection: "JTJ-SA"),
+    SectionTrain(id: '12681', name: 'Chennai Mail', pos: 0.56, direction: TrainDirection.UP, status: 'Delayed', eta: '15:30', speed: 90, loco: "WAP7-30221", delay: 32, currentSection: "KPD-JTJ"),
+    SectionTrain(id: '16526', name: 'Bangalore Express', pos: 0.05, direction: TrainDirection.DOWN, status: 'On Time', eta: '11:00', speed: 120, loco: "WAP7-30111", delay: 0, currentSection: "SBC-HSUR"),
+    SectionTrain(id: '12678', name: 'Intercity Express', pos: 0.35, direction: TrainDirection.DOWN, status: 'On Time', eta: '16:05', speed: 105, loco: "WAP4-22289", delay: 0, currentSection: "DPJ-SA"),
+    SectionTrain(id: '12659', name: 'Mysuru Express', pos: 0.20, direction: TrainDirection.UP, status: 'On Time', eta: '17:00', speed: 115, loco: "WAP4-22673", delay: 0, currentSection: "SA-ED"),
+    SectionTrain(id: '16527', name: 'Yercaud Express', pos: 0.55, direction: TrainDirection.UP, status: 'Delayed', eta: '18:30', speed: 80, loco: "WAP7-30155", delay: 15, currentSection: "ED-SA"),
   ];
+  final List<String> stationList = const ['MAS', 'AJJ', 'KPD', 'JTJ', 'SA', 'DPJ', 'HSUR', 'SBC', 'ED'];
 
+  String trainFilter = "All";
+  String selectedAlertRoute = "";
   Timer? _animTimer;
-  Random _rand = Random();
+  final Random _rand = Random();
+
+  List<SectionTrain> get filteredTrains {
+    if (trainFilter == "All") return sectionTrains;
+    if (trainFilter == "Delayed") return sectionTrains.where((t) => t.delay > 0).toList();
+    if (trainFilter == "On-time") return sectionTrains.where((t) => t.delay == 0).toList();
+    return sectionTrains;
+  }
 
   @override
   void initState() {
     super.initState();
-
-    // Start a periodic timer to animate trains slightly (mock movement).
-    _animTimer = Timer.periodic(Duration(milliseconds: 500), (_) {
+    _animTimer = Timer.periodic(const Duration(milliseconds: 700), (_) {
       setState(() {
         for (var t in sectionTrains) {
-          // small jitter for demo; if delayed, move slower
-          double speed = (t.status.toLowerCase().contains('delayed')) ? 0.003 : 0.01;
+          double speed = (t.status == 'Delayed') ? 0.003 : 0.01;
           if (t.direction == TrainDirection.UP) {
             t.pos += speed * (_rand.nextDouble() + 0.2);
-            if (t.pos > 1.0) t.pos = 0.0; // Loop back for continuous demo
+            if (t.pos > 1.0) t.pos = 0.0;
           } else {
             t.pos -= speed * (_rand.nextDouble() + 0.2);
-            if (t.pos < 0.0) t.pos = 1.0; // Loop back for continuous demo
+            if (t.pos < 0.0) t.pos = 1.0;
           }
         }
       });
@@ -115,840 +145,1010 @@ class _DashboardPageState extends State<DashboardPage> {
     super.dispose();
   }
 
-  // Helper to add a suggestion entry
-  void _addSuggestion(String title, String detail) {
-    setState(() {
-      suggestionHistory.insert(0, {
-        "id": "S${suggestionHistory.length + 1}",
-        "title": title,
-        "detail": detail,
-        "time": TimeOfDay.now().format(context)
-      });
-      if (suggestionHistory.length > 20) suggestionHistory.removeLast();
-    });
-  }
-
-  // Placeholder for applying suggestion
-  void _applySuggestion(Map<String, String> s) {
-    // For demo, just add to history and show snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Applied: ${s["title"]}')),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: dashboardBg,
+      body: SafeArea(
+        child: Row(
+          children: [
+            // Sidebar
+            _sidebar(),
+            // Main content
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Page Header
+                    Text("Control Dashboard", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28, color: textColor)),
+                    const SizedBox(height: 12),
+                    Text("Real-time operational overview for Madras Division", style: TextStyle(fontSize: 14, color: secondaryTextColor)),
+                    const SizedBox(height: 30),
+                    // KPIs
+                    _kpiWrap(),
+                    const SizedBox(height: 30),
+                    // Panels grid (map, trains, alerts)
+                    _dashboardPanels(),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: irPrimaryBlue,
+        onPressed: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => ChatbotPage()));
+        },
+        child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+      ),
     );
   }
 
-  // Placeholder for override (controller action)
-  void _overrideSuggestion(Map<String, String> s) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Overrode: ${s["title"]}')),
+  // --- Widget Builders ---
+  Widget _sidebar() {
+    return Container(
+      width: 250.0,
+      decoration: BoxDecoration(
+        color: irPrimaryBlue,
+        boxShadow: [BoxShadow(blurRadius: 13, color: Colors.black.withOpacity(0.07), offset: const Offset(0, 4))],
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 21, horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.train, color: irGold, size: 28),
+              const SizedBox(width: 8),
+              Text("Section Control", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
+            ],
+          ),
+          const SizedBox(height: 25),
+          _sidebarBtn(Icons.dashboard_rounded, "Control Dashboard", selected: true),
+          _sidebarBtn(Icons.directions_subway, "Live Movements", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LiveMovementsPage()))),
+          _sidebarBtn(Icons.lightbulb_outline, "AI-Recommendation", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiRecommendationsPage()))),
+          _sidebarBtn(Icons.bar_chart, "Reports & Analytics", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReportsAnalyticsPage()))),
+          const SizedBox(height: 20),
+          _sidebarStatus(),
+          const Spacer(),
+          const Divider(color: Colors.white24, height: 20),
+          Row(
+            children: [
+              CircleAvatar(backgroundColor: irGold, child: Text('SC', style: TextStyle(color: irPrimaryBlue, fontWeight: FontWeight.bold))),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Section Controller", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                  Text("Madras Division", style: TextStyle(fontSize: 12, color: Colors.white70)),
+                ],
+              )
+            ],
+          ),
+        ],
+      ),
     );
   }
 
-  // Show train action popup
-  void _showTrainActions(BuildContext ctx, SectionTrain t) {
-    showDialog(
-      context: ctx,
-      builder: (_) => AlertDialog(
-        title: Text(t.name),
+  Widget _sidebarBtn(IconData icon, String label, {bool selected = false, VoidCallback? onTap}) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white.withOpacity(0.13) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: selected ? irGold : Colors.white70, size: 20),
+            const SizedBox(width: 10),
+            Text(label, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal, fontSize: 15, color: selected ? Colors.white : Colors.white70)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _sidebarStatus() {
+    String istTime = TimeOfDay.now().format(context);
+    return Container(
+      decoration: BoxDecoration(
+        color: irPrimaryBlue.withOpacity(0.5),
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(color: irGold.withOpacity(0.2)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("SYSTEM STATUS", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 10, color: Colors.white54)),
+          const SizedBox(height: 6),
+          _statusRow(Icons.power, "Online", online ? kpiGreen : kpiRed),
+          _statusRow(Icons.access_time, "IST Time: $istTime", Colors.white),
+          _statusRow(Icons.train, "Active Trains: $activeTrains", irGold),
+          _statusRow(Icons.warning_amber_rounded, "Alerts: ${alerts.length}", kpiRed),
+        ],
+      ),
+    );
+  }
+
+  Widget _statusRow(IconData icon, String text, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(fontSize: 12, color: color)),
+        ],
+      ),
+    );
+  }
+
+  Widget _kpiWrap() {
+    return Wrap(
+      spacing: 20,
+      runSpacing: 20,
+      alignment: WrapAlignment.start,
+      children: [
+        _kpiCard(title: "Active Trains", value: "$activeTrains", icon: Icons.train_rounded, accent: irPrimaryBlue),
+        _kpiCard(title: "On-Time %", value: "${_calculateOnTime()}%", icon: Icons.av_timer_rounded, accent: _onTimeColor()),
+        _kpiCard(title: "Critical Alerts", value: "${_criticalAlertsCount()}", icon: Icons.error_rounded, accent: kpiRed),
+        _kpiCard(title: "RAILOPT-AI", value: "3", icon: Icons.lightbulb, accent: irGold, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiRecommendationsPage()))),
+      ],
+    );
+  }
+
+  Widget _kpiCard({required String title, required String value, required IconData icon, required Color accent, VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        width: 200,
+        height: 100,
+        decoration: BoxDecoration(
+          color: cardColor,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 4))],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: accent, size: 24),
+                const SizedBox(width: 8),
+                Expanded(child: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: secondaryTextColor, fontSize: 14))),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 24)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _dashboardPanels() {
+  return LayoutBuilder(builder: (ctx, cons) {
+    double panelWidth = (cons.maxWidth - 20) / 2;
+    if (cons.maxWidth < 700) {
+      panelWidth = cons.maxWidth;
+    }
+    return Wrap(
+      spacing: 20,
+      runSpacing: 20,
+      children: [
+        _panelContainer(
+          width: cons.maxWidth,
+          height: 400,
+          child: SectionMap(
+            stations: stationList,
+            trains: sectionTrains,
+            highlightRoute: selectedAlertRoute,
+            onStationTap: _showStationDetails,
+            onTrainTap: _showTrainDetails,
+          ),
+        ),
+        _panelContainer(width: panelWidth, height: 400, child: _liveTrainPanel()),
+        _panelContainer(width: panelWidth, height: 400, child: _alertsPanel()),
+      ],
+    );
+  });
+}
+
+  Widget _panelContainer({required double width, required double height, required Widget child}) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 4))],
+      ),
+      child: child,
+    );
+  }
+
+  Widget _liveTrainPanel() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Live Train Movements", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+              Row(
+                children: [
+                  _filterTab("All"),
+                  _filterTab("Delayed"),
+                  _filterTab("On-time"),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          const Divider(color: Colors.black12, height: 1),
+          const SizedBox(height: 10),
+          _buildDetailedTrainTable(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailedTrainTable() {
+    return Expanded(
+      child: SingleChildScrollView(
+        child: Column(
+          children: [
+            // Table Header
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(color: dashboardBg, borderRadius: BorderRadius.circular(8)),
+              child: Row(
+                children: [
+                  SizedBox(width: 40, child: Text("ID", style: TextStyle(fontWeight: FontWeight.bold, color: secondaryTextColor))),
+                  SizedBox(width: 120, child: Text("Name", style: TextStyle(fontWeight: FontWeight.bold, color: secondaryTextColor))),
+                  SizedBox(width: 60, child: Text("Status", style: TextStyle(fontWeight: FontWeight.bold, color: secondaryTextColor))),
+                  SizedBox(width: 50, child: Text("Speed", style: TextStyle(fontWeight: FontWeight.bold, color: secondaryTextColor))),
+                  Expanded(child: Text("Delay", style: TextStyle(fontWeight: FontWeight.bold, color: secondaryTextColor))),
+                ],
+              ),
+            ),
+            // Table Rows
+            const SizedBox(height: 8),
+            ...filteredTrains.map((t) => _buildTrainRow(t)).toList(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTrainRow(SectionTrain t) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      decoration: BoxDecoration(
+        color: cardColor,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [BoxShadow(blurRadius: 2, color: Colors.black12)],
+      ),
+      child: Row(
+        children: [
+          SizedBox(width: 40, child: Text(t.id, style: TextStyle(fontWeight: FontWeight.w600, color: textColor, fontSize: 13))),
+          SizedBox(width: 120, child: Text(t.name, style: TextStyle(fontWeight: FontWeight.w500, color: textColor, fontSize: 13))),
+          SizedBox(
+            width: 60,
+            child: _statusChip(t.delay),
+          ),
+          SizedBox(width: 50, child: Text("${t.speed} kmph", style: TextStyle(color: secondaryTextColor, fontSize: 13))),
+          Expanded(child: Text(t.delay == 0 ? "On Time" : "+${t.delay} min", style: TextStyle(fontWeight: FontWeight.bold, color: _trainStatusColor(t.delay), fontSize: 13))),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertsPanel() {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Alerts & Disruptions", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: textColor)),
+          const SizedBox(height: 10),
+          const Divider(color: Colors.black12, height: 1),
+          Expanded(
+            child: ListView.builder(
+              itemCount: alerts.length,
+              itemBuilder: (_, i) => Dismissible(
+                key: Key(alerts[i]["route"]),
+                onDismissed: (direction) {
+                  setState(() {
+                    alerts.removeAt(i);
+                    // Reset highlight if dismissed route was highlighted
+                    if (selectedAlertRoute == alerts[i]["route"]) {
+                      selectedAlertRoute = "";
+                    }
+                  });
+                },
+                direction: DismissDirection.endToStart,
+                background: Container(
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 20),
+                  color: Colors.green.shade600,
+                  child: const Icon(Icons.check, color: Colors.white),
+                ),
+                child: _alertCard(alerts[i]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterTab(String label) {
+    final bool isSelected = trainFilter == label;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: ChoiceChip(
+        selected: isSelected,
+        label: Text(label),
+        onSelected: (selected) => setState(() => trainFilter = label),
+        selectedColor: irPrimaryBlue.withOpacity(.13),
+        backgroundColor: dashboardBg,
+        labelStyle: TextStyle(
+          color: isSelected ? irPrimaryBlue : secondaryTextColor,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+        ),
+        visualDensity: VisualDensity.compact,
+      ),
+    );
+  }
+
+  Widget _statusChip(int delay) {
+    final statusColor = _trainStatusColor(delay);
+    final statusText = delay == 0 ? "On Time" : (delay > 20 ? "Critical" : "Delayed");
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: statusColor.withOpacity(0.15), borderRadius: BorderRadius.circular(16)),
+      child: Text(statusText, style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
+    );
+  }
+
+  Color _trainStatusColor(int delay) {
+    return delay == 0 ? kpiGreen : (delay > 20 ? kpiRed : kpiOrange);
+  }
+
+  Widget _alertCard(Map<String, dynamic> a) {
+    Color levelColor;
+    if (a["level"] == "Critical") levelColor = kpiRed;
+    else if (a["level"] == "High") levelColor = kpiOrange;
+    else levelColor = kpiGreen;
+
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      child: InkWell(
+        onTap: () => setState(() => selectedAlertRoute = a["route"]),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: levelColor, size: 20),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(color: levelColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                    child: Text(a["level"], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: levelColor)),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(a["route"], style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: textColor)),
+                  const Spacer(),
+                  Text(a["time"], style: TextStyle(color: secondaryTextColor, fontSize: 11)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(a["title"], style: TextStyle(fontWeight: FontWeight.w600, color: textColor)),
+              if ((a["affected"] as List).isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Row(
+                    children: [
+                      Icon(Icons.directions_train, size: 14, color: secondaryTextColor),
+                      const SizedBox(width: 4),
+                      Text("Impacts trains: ", style: TextStyle(fontSize: 12, color: secondaryTextColor)),
+                      Expanded(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: (a["affected"] as List).map((trainId) => _infoChip(trainId, irMaroon)).toList(),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // The void _showStationDetails function
+void _showStationDetails(String stationCode) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      int trainsAtStation = sectionTrains.where((t) => 
+          t.currentSection.contains(stationCode) ||
+          (stationList.indexOf(t.currentSection.split('-').first) == stationList.indexOf(stationCode))
+      ).length;
+      int activeAlerts = alerts.where((a) => a["route"].contains(stationCode)).length;
+
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text("$stationCode Station Status", style: TextStyle(fontWeight: FontWeight.bold)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _infoRow('Train No.', t.id),
-            _infoRow('Status', t.status),
-            _infoRow('ETA', t.eta),
-            _infoRow('Direction', t.direction == TrainDirection.UP ? 'UP' : 'DOWN'),
-            SizedBox(height: 8),
-            Text('Actions:', style: TextStyle(fontWeight: FontWeight.bold)),
+            Text("Current Status: All Clear", style: TextStyle(color: kpiGreen, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
+            _detailRow(Icons.train, "Trains in Vicinity:", "$trainsAtStation"),
+            _detailRow(Icons.warning, "Active Alerts:", "$activeAlerts"),
           ],
         ),
         actions: [
           TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                // Hold action (mock)
-                setState(() {
-                  t.status = 'Held';
-                });
-                _addSuggestion('Hold ${t.name}', 'Controller initiated hold');
-                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('${t.name} held.')));
-              },
-              child: Text('Hold')),
-          TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                // Reroute action (mock)
-                _addSuggestion('Reroute ${t.name}', 'Rerouted via loop line (demo)');
-                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text('${t.name} rerouted.')));
-              },
-              child: Text('Reroute')),
-          TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-              },
-              child: Text('Close')),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close", style: TextStyle(color: irPrimaryBlue, fontWeight: FontWeight.bold)),
+          ),
         ],
-      ),
-    );
-  }
+      );
+    },
+  );
+}
 
-  Widget _infoRow(String title, String value) {
+// The void _showTrainDetails function with the added image
+void _showTrainDetails(SectionTrain t) {
+  String imagePath = _trainImages[t.name] ?? 'assets/train_loco.jpg'; // Use a default image if not found
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.directions_train, color: irPrimaryBlue),
+            const SizedBox(width: 10),
+            Text("${t.id} - ${t.name}", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Display the dynamic train image
+              Center(
+                child: Image.asset(
+                  imagePath,
+                  height: 100,
+                  width: 150,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              const Divider(height: 20, thickness: 1),
+              _detailRow(Icons.access_time_filled, "ETA", t.eta),
+              _detailRow(Icons.speed, "Speed", "${t.speed} kmph"),
+              _detailRow(Icons.timer_off, "Delay", "${t.delay} min"),
+              _detailRow(Icons.power_settings_new, "Loco", t.loco),
+              _detailRow(Icons.swap_horiz, "Direction", t.direction == TrainDirection.UP ? 'UP' : 'DOWN'),
+              _detailRow(Icons.route, "Current Section", t.currentSection),
+              const Divider(),
+              Text("Operational Status:", style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(t.status, style: TextStyle(color: _trainStatusColor(t.delay), fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text("Close", style: TextStyle(color: irPrimaryBlue, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      );
+    },
+  );
+}
+
+
+  Widget _detailRow(IconData icon, String label, String value) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Expanded(child: Text(title, style: TextStyle(color: Colors.black54))),
-          Text(value, style: TextStyle(fontWeight: FontWeight.w600)),
+          Icon(icon, size: 16, color: irPrimaryBlue),
+          const SizedBox(width: 8),
+          Text(label, style: TextStyle(color: secondaryTextColor)),
+          const Spacer(),
+          Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
         ],
       ),
     );
   }
 
-  // Build UI
+  int _calculateOnTime() {
+    if (sectionTrains.isEmpty) return 100;
+    int ontime = sectionTrains.where((t) => t.delay == 0).length;
+    return ((ontime / sectionTrains.length) * 100).round();
+  }
+  int _criticalAlertsCount() => alerts.where((a) => a["level"] == "Critical").length;
+
+  Color _onTimeColor() {
+    int onTime = _calculateOnTime();
+    if (onTime < 80) return kpiRed;
+    if (onTime < 95) return kpiOrange;
+    return kpiGreen;
+  }
+}
+
+// --- Placeholder Pages ---
+class LiveMovementsPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF003366), Color(0xFF1A2636)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
-          ),
-          child: Row(
-            children: [
-              SizedBox(width: 18),
-              Image.asset('assets/indian_railways_logo.jpeg', height: 40, width: 40, errorBuilder: (_, __, ___) => Icon(Icons.train, color: Colors.white, size: 36)),
-              SizedBox(width: 14),
-              Text('INDIAN RAILWAYS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 22, letterSpacing: 2)),
-              SizedBox(width: 18),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.red[900],
-                  borderRadius: BorderRadius.circular(6),
-                  boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 4)],
-                ),
-                child: Text('MADRAS DIVISION', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-              ),
-              Spacer(),
-              Icon(Icons.access_time, color: Colors.white70),
-              SizedBox(width: 6),
-              Text(TimeOfDay.now().format(context), style: TextStyle(color: Colors.white)),
-              SizedBox(width: 18),
-              Icon(Icons.notifications, color: Colors.amberAccent),
-              SizedBox(width: 8),
-              CircleAvatar(radius: 10, backgroundColor: Colors.red, child: Text('2', style: TextStyle(fontSize: 12, color: Colors.white))),
-              SizedBox(width: 18),
-            ],
-          ),
+      appBar: AppBar(
+        title: const Text('Live Movements', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: _DashboardPageState.irPrimaryBlue,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // KPI digital status bar
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1A2636), Color(0xFF003366)],
-                  begin: Alignment.centerLeft,
-                  end: Alignment.centerRight,
-                ),
-                boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 6)],
-              ),
-              child: Row(
-                children: [
-                  _kpiCard('Active Trains', activeTrains.toString(), Colors.green),
-                  SizedBox(width: 18),
-                  _kpiCard('Delayed', delayedTrains.toString(), Colors.red),
-                  SizedBox(width: 18),
-                  _kpiCard('On-Time %', '${onTimePercent.toStringAsFixed(1)}%', Colors.blue),
-                  SizedBox(width: 18),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.yellow[800],
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.warning, color: Colors.white, size: 18),
-                        SizedBox(width: 6),
-                        Text('2 Disruptions', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                  Spacer(),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      _addSuggestion('Priority to 12007', 'AI recommends priority to Shatabdi (demo)');
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('AI suggestion created')));
-                    },
-                    icon: Icon(Icons.autorenew),
-                    label: Text('AI Route Suggestion'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.black, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                children: [
-                  // Sidebar
-                  Container(
-                    width: 220,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Color(0xFF0E2740), Color(0xFF1A2636)],
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                      ),
-                      boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 8)],
-                    ),
-                    child: Column(
-                      children: [
-                        SizedBox(height: 24),
-                        Image.asset('assets/indian_railways_logo.jpeg', height: 48, width: 48, errorBuilder: (_, __, ___) => Icon(Icons.train, color: Colors.white, size: 36)),
-                        SizedBox(height: 10),
-                        Text('RAIL CONTROL', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                        Divider(color: Colors.white12),
-                        _sidebarTile(Icons.dashboard, 'Dashboard', selected: true, onTap: () {}),
-                        _sidebarTile(Icons.timeline, 'Simulation', onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => SimulationPage()));
-                        }),
-                        _sidebarTile(Icons.show_chart, 'KPIs', onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => KpiPage()));
-                        }),
-                        _sidebarTile(Icons.school, 'Training', onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => TrainingPage()));
-                        }),
-                        Spacer(),
-                        Padding(
-                          padding: const EdgeInsets.all(8.0),
-                          child: Text('Madras Division', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600)),
-                        ),
-                        SizedBox(height: 12),
-                      ],
-                    ),
-                  ),
-                  // Main content
-                  Expanded(
-                    child: Container(
-                      color: Color(0xFFF3F6FA),
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Row(
-                                children: [
-                                  // Left: Train list
-                                  Expanded(
-                                    flex: 3,
-                                    child: Container(
-                                      padding: EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Color(0xFF1A2636),
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Icon(Icons.train, color: Colors.amberAccent),
-                                              SizedBox(width: 8),
-                                              Text('Section Trains', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                            ],
-                                          ),
-                                          SizedBox(height: 8),
-                                          Expanded(
-                                            child: ListView.builder(
-                                              itemCount: sectionTrains.length,
-                                              itemBuilder: (_, i) {
-                                                var t = sectionTrains[i];
-                                                return _trainListTile(t, dark: true);
-                                              },
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  // Center: SectionMap (unchanged)
-                                  Expanded(
-                                    flex: 6,
-                                    child: Container(
-                                      padding: EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black,
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Text('Chennai Central → Katpadi (Section View)', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                          SizedBox(height: 8),
-                                          Expanded(
-                                            child: SectionMap(
-                                              stations: [
-                                                'MAS', 'PER', 'VLK', 'AVD', 'TRL', 'KBT', 'AJJ', 'SHU', 'MCN', 'KPD'
-                                              ],
-                                              trains: sectionTrains,
-                                              onTrainTap: (train) => _showTrainActions(context, train),
-                                              onChange: (trainId, newPos) {
-                                                setState(() {
-                                                  var tr = sectionTrains.firstWhere((e) => e.id == trainId, orElse: () => sectionTrains[0]);
-                                                  tr.pos = newPos.clamp(0.0, 1.0);
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  SizedBox(width: 12),
-                                  // Right: AI decision assistant
-                                  Expanded(
-                                    flex: 3,
-                                    child: Container(
-                                      padding: EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Color(0xFF1A2636),
-                                        borderRadius: BorderRadius.circular(8),
-                                        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
-                                      ),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        children: [
-                                          Row(
-                                            children: [
-                                              Icon(Icons.lightbulb, color: Colors.yellowAccent),
-                                              SizedBox(width: 8),
-                                              Text('AI Decision Assistant', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
-                                            ],
-                                          ),
-                                          SizedBox(height: 8),
-                                          Text('Suggestions & History', style: TextStyle(color: Colors.white54)),
-                                          Divider(color: Colors.white24),
-                                          Expanded(
-                                            child: ListView.builder(
-                                              itemCount: suggestionHistory.length,
-                                              itemBuilder: (_, idx) {
-                                                var s = suggestionHistory[idx];
-                                                return Card(
-                                                  color: Color(0xFF25344D),
-                                                  margin: EdgeInsets.symmetric(vertical: 6),
-                                                  child: ListTile(
-                                                    title: Text(s['title']!, style: TextStyle(color: Colors.white)),
-                                                    subtitle: Text(s['detail']!, style: TextStyle(color: Colors.white70)),
-                                                    trailing: Wrap(
-                                                      spacing: 4,
-                                                      children: [
-                                                        IconButton(
-                                                            icon: Icon(Icons.check, color: Colors.greenAccent),
-                                                            onPressed: () {
-                                                              _applySuggestion(s);
-                                                            }),
-                                                        IconButton(
-                                                            icon: Icon(Icons.close, color: Colors.redAccent),
-                                                            onPressed: () {
-                                                              _overrideSuggestion(s);
-                                                            }),
-                                                        IconButton(
-                                                            icon: Icon(Icons.remove_red_eye, color: Colors.blueAccent),
-                                                            onPressed: () {
-                                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Previewed ${s['title']}')));
-                                                            }),
-                                                      ],
-                                                    ),
-                                                    onTap: () {
-                                                      showDialog(
-                                                          context: context,
-                                                          builder: (_) => AlertDialog(
-                                                            title: Text(s['title']!),
-                                                            content: Text(s['detail']! + '\nTime: ${s['time']}'),
-                                                            actions: [
-                                                              TextButton(onPressed: () => Navigator.pop(context), child: Text('Close'))
-                                                            ],
-                                                          ));
-                                                    },
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          ),
-                                          SizedBox(height: 6),
-                                          ElevatedButton.icon(
-                                            onPressed: () {
-                                              _addSuggestion('Quick Hold Recommendation', 'Hold low-priority freight (demo)');
-                                            },
-                                            icon: Icon(Icons.add),
-                                            label: Text('Log AI Suggestion'),
-                                            style: ElevatedButton.styleFrom(backgroundColor: Colors.orangeAccent, foregroundColor: Colors.black, elevation: 0, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6))),
-                                          )
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          // Footer/status bar
-                          Container(
-                            height: 32,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [Color(0xFF003366), Color(0xFF1A2636)],
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                SizedBox(width: 18),
-                                Icon(Icons.person, color: Colors.white54, size: 18),
-                                SizedBox(width: 6),
-                                Text('Operator: Control Room 1', style: TextStyle(color: Colors.white70)),
-                                Spacer(),
-                                Icon(Icons.memory, color: Colors.white54, size: 18),
-                                SizedBox(width: 6),
-                                
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+      body: Center(
+        child: Text(
+          'Detailed Live Movement Data',
+          style: TextStyle(fontSize: 24, color: _DashboardPageState.secondaryTextColor),
         ),
       ),
     );
   }
+}
 
-  Widget _sidebarTile(IconData icon, String title, {bool selected = false, Function()? onTap}) {
-    return ListTile(
-      leading: Icon(icon, color: selected ? Colors.white : Colors.white70),
-      title: Text(title, style: TextStyle(color: selected ? Colors.white : Colors.white70)),
-      onTap: onTap ?? () {},
+class AiRecommendationsPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('AI Recommendations', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: _DashboardPageState.irPrimaryBlue,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: Text(
+          'Predictive Analytics & Insights',
+          style: TextStyle(fontSize: 24, color: _DashboardPageState.secondaryTextColor),
+        ),
+      ),
     );
   }
+}
 
-  Widget _kpiCard(String title, String value, Color color) {
-    return Container(
-      padding: EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), boxShadow: [
-        BoxShadow(color: Colors.black12, blurRadius: 6)
-      ]),
-      child: Row(
+class ReportsAnalyticsPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Reports & Analytics', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: _DashboardPageState.irPrimaryBlue,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: Center(
+        child: Text(
+          'Operational Reports & Trends',
+          style: TextStyle(fontSize: 24, color: _DashboardPageState.secondaryTextColor),
+        ),
+      ),
+    );
+  }
+}
+
+class ChatbotPage extends StatefulWidget {
+  @override
+  _ChatbotPageState createState() => _ChatbotPageState();
+}
+
+class _ChatbotPageState extends State<ChatbotPage> {
+  final TextEditingController _controller = TextEditingController();
+  final List<Map<String, String>> _messages = [
+    {"sender": "bot", "text": "Hello! I am your AI assistant. How can I help you today?"},
+    {"sender": "bot", "text": "You can ask me about train statuses, route info, or current disruptions."},
+  ];
+
+  void _handleSend() {
+    if (_controller.text.isNotEmpty) {
+      String userMessage = _controller.text;
+      setState(() {
+        _messages.add({"sender": "user", "text": userMessage});
+        _controller.clear();
+      });
+      _getBotResponse(userMessage);
+    }
+  }
+
+  void _getBotResponse(String userMessage) {
+    String response = "I'm sorry, I don't understand that request. Please ask about trains, routes, or delays.";
+    if (userMessage.toLowerCase().contains("train")) {
+      response = "The latest status for Train 12295 is 'On Time' on the MAS-AJJ section.";
+    } else if (userMessage.toLowerCase().contains("delay")) {
+      response = "The current major delay is on the KPD-JTJ section affecting several express trains.";
+    } else if (userMessage.toLowerCase().contains("route")) {
+      response = "The main route from Chennai to Bangalore passes through Katpadi, Jolarpettai, and Salem.";
+    }
+
+    Timer(const Duration(milliseconds: 1000), () {
+      setState(() {
+        _messages.add({"sender": "bot", "text": response});
+      });
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: _DashboardPageState.irPrimaryBlue,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text("AI Assistant", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+      ),
+      body: Column(
         children: [
-          Container(
-            width: 6,
-            height: 50,
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
+          Expanded(
+            child: ListView.builder(
+              reverse: true,
+              padding: const EdgeInsets.all(16),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                final message = _messages[_messages.length - 1 - index];
+                return Align(
+                  alignment: message['sender'] == 'user' ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: message['sender'] == 'user' ? _DashboardPageState.irPrimaryBlue : _DashboardPageState.cardColor,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      message['text']!,
+                      style: TextStyle(
+                        color: message['sender'] == 'user' ? Colors.white : _DashboardPageState.textColor,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
-          SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: TextStyle(color: Colors.black54)),
-              SizedBox(height: 4),
-              Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            ],
-          )
+          const Divider(height: 1, color: Colors.black12),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      hintText: "Ask me anything...",
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(30),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: _DashboardPageState.dashboardBg,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                    ),
+                    onSubmitted: (_) => _handleSend(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FloatingActionButton(
+                  onPressed: _handleSend,
+                  backgroundColor: _DashboardPageState.irPrimaryBlue,
+                  child: const Icon(Icons.send, color: Colors.white),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
-
-  Widget _trainListTile(SectionTrain t, {bool dark = false}) {
-    final Color bg = dark ? Color(0xFF25344D) : Colors.white;
-    final Color fg = dark ? Colors.white : Colors.black87;
-    final Color sub = dark ? Colors.white70 : Colors.black54;
-    final Color iconColor = t.status.toLowerCase().contains('delayed') ? Colors.redAccent : Colors.greenAccent;
-    return Card(
-      color: bg,
-      margin: EdgeInsets.symmetric(vertical: 6),
-      child: ListTile(
-        leading: Icon(Icons.train, color: iconColor),
-        title: Text(t.name, style: TextStyle(color: fg, fontWeight: FontWeight.bold)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  Icon(Icons.schedule, size: 14, color: sub),
-                  SizedBox(width: 2),
-                  Text('ETA: ${t.eta}', style: TextStyle(color: sub)),
-                  SizedBox(width: 10),
-                  Icon(Icons.swap_vert, size: 14, color: sub),
-                  SizedBox(width: 2),
-                  Text('Dir: ${t.direction == TrainDirection.UP ? 'UP' : 'DOWN'}', style: TextStyle(color: sub)),
-                  SizedBox(width: 10),
-                  Icon(Icons.circle, size: 10, color: t.status == 'Held' ? Colors.orange : (t.status.toLowerCase().contains('delayed') ? Colors.red : Colors.green)),
-                  SizedBox(width: 2),
-                  Text(t.status, style: TextStyle(color: sub)),
-                ],
-              ),
-            ),
-            SizedBox(height: 6),
-            LinearProgressIndicator(value: t.pos, minHeight: 6, color: Colors.blueAccent, backgroundColor: Colors.white10),
-          ],
-        ),
-        trailing: Wrap(
-          spacing: 4,
-          children: [
-            IconButton(
-              onPressed: () {
-                _showTrainActions(context, t);
-              },
-              icon: Icon(Icons.pause, color: Colors.amber),
-            ),
-            IconButton(
-              onPressed: () {
-                _addSuggestion('Reroute ${t.name}', 'Proposed reroute via loop line (demo)');
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reroute proposed for ${t.name}')));
-              },
-              icon: Icon(Icons.alt_route, color: Colors.blueAccent),
-            ),
-          ],
-        ),
-        onTap: () => _showTrainActions(context, t),
-      ),
-    );
-  }
 }
 
-// -------------------------- Section Map Widget (Final) --------------------------
-
-typedef TrainTapCallback = void Function(SectionTrain train);
-typedef TrainPositionCallback = void Function(String trainId, double newPos);
-
-class SectionMap extends StatefulWidget {
+// --- Map and Painter ---
+class SectionMap extends StatelessWidget {
   final List<String> stations;
   final List<SectionTrain> trains;
-  final TrainTapCallback? onTrainTap;
-  final TrainPositionCallback? onChange;
+  final String highlightRoute;
+  final Function(String stationCode) onStationTap;
+  final Function(SectionTrain train) onTrainTap;
 
-  SectionMap({required this.stations, required this.trains, this.onTrainTap, this.onChange});
-
-  @override
-  _SectionMapState createState() => _SectionMapState();
-}
-
-class _SectionMapState extends State<SectionMap> {
-  String? _draggingTrainId;
+  const SectionMap({
+    Key? key,
+    required this.stations,
+    required this.trains,
+    required this.highlightRoute,
+    required this.onStationTap,
+    required this.onTrainTap,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(builder: (context, constraints) {
-      final width = constraints.maxWidth;
-      final height = constraints.maxHeight;
-
-      return GestureDetector(
-        onPanUpdate: (details) {
-          if (_draggingTrainId != null) {
-            setState(() {
-              final dx = details.delta.dx;
-              final train = widget.trains.firstWhere((t) => t.id == _draggingTrainId);
-              double newPos = train.pos + dx / width;
-              train.pos = newPos.clamp(0.0, 1.0);
-              if (widget.onChange != null) widget.onChange!(train.id, train.pos);
-            });
-          }
-        },
-        onPanEnd: (_) {
-          _draggingTrainId = null;
-        },
+      return Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF161F2E),
+          borderRadius: BorderRadius.circular(14),
+        ),
         child: Stack(
           children: [
             Positioned.fill(
-              child: Container(color: Colors.black),
-            ),
-            
-            Positioned.fill(
               child: CustomPaint(
                 painter: AdvancedTrackPainter(
-                  stations: widget.stations,
-                  trains: widget.trains,
+                  stations: stations,
+                  trains: trains,
+                  highlightRoute: highlightRoute,
                 ),
               ),
             ),
-
-            ...widget.trains.where((t) => t.id != 'BRANCH1').map((t) {
-              final double startX = 60;
-              final double stationInterval = (width - 120) / (widget.stations.length - 1);
-              final double displayX = startX + t.pos * (stationInterval * (widget.stations.length - 1));
-              final double centerY = height / 2;
-              final double mainTrack1Y = centerY - 15; // UP
-              final double mainTrack2Y = centerY + 15; // DOWN
-              final double mainTrack3Y = centerY + 45; // Freight/loop (optional)
-              double displayY;
-              switch (t.direction) {
-                case TrainDirection.UP:
-                  displayY = mainTrack1Y;
-                  break;
-                case TrainDirection.DOWN:
-                  displayY = t.id.contains('Freight') ? mainTrack3Y : mainTrack2Y;
-                  break;
-              }
-              return Positioned(
-                left: displayX - 25,
-                top: displayY - 25,
-                child: GestureDetector(
-                  onTap: () => widget.onTrainTap!(t),
-                  onPanStart: (details) {
-                    _draggingTrainId = t.id;
-                  },
-                  child: MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: Container(
-                      padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: t.direction == TrainDirection.UP ? Colors.green[700] : Colors.blue[700],
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.white, width: 1.5),
-                        boxShadow: [BoxShadow(color: Colors.white24, blurRadius: 4)],
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(Icons.train, color: Colors.white, size: 16),
-                          SizedBox(width: 4),
-                          Text(t.id, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-            // Draw branch train
-            ...widget.trains.where((t) => t.id == 'BRANCH1').map((t) {
-              // Branch geometry must match painter
-              final double startX = 60 + 6 * ((width - 120) / 9); // AJJ index = 6
-              final double centerY = height / 2;
-              final double branchStartY = centerY + 15;
-              final double branchTiltedX = startX + 40;
-              final double branchTiltedY = branchStartY + 40;
-              final double branchHorizontalX2 = branchTiltedX + 100;
-              final double branchHorizontalY = branchTiltedY;
-              // Interpolate position along branch (0..0.4 = tilted, 0.4..1 = horizontal)
-              double bx, by;
-              if (t.pos < 0.4) {
-                double f = t.pos / 0.4;
-                bx = startX + (branchTiltedX - startX) * f;
-                by = branchStartY + (branchTiltedY - branchStartY) * f;
-              } else {
-                double f = (t.pos - 0.4) / 0.6;
-                bx = branchTiltedX + (branchHorizontalX2 - branchTiltedX) * f;
-                by = branchTiltedY;
-              }
-              return Positioned(
-                left: bx - 25,
-                top: by - 25,
-                child: Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.red[700],
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.all(color: Colors.white, width: 1.5),
-                    boxShadow: [BoxShadow(color: Colors.redAccent, blurRadius: 6)],
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.train, color: Colors.white, size: 16),
-                      SizedBox(width: 4),
-                      Text('25022', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                    ],
-                  ),
-                ),
-              );
-            }),
+            ..._buildStationMarkers(constraints),
+            ..._buildTrainMarkers(constraints),
           ],
         ),
       );
     });
   }
-}
 
-// -------------------------- Advanced Track Painter --------------------------
-// This is the core logic for the new, complex track view.
+  List<Widget> _buildStationMarkers(BoxConstraints constraints) {
+    final double startX = 40;
+    final double endX = constraints.maxWidth - 40;
+    final double centerY = constraints.maxHeight / 2;
+    final double usableWidth = endX - startX;
+    final double segmentWidth = usableWidth / (stations.length - 1);
+    final int saIndex = stations.indexOf('SA');
+    final int edIndex = stations.indexOf('ED');
+    final double branchOffsetY = 70;
+
+    return stations.asMap().entries.map((entry) {
+      int i = entry.key;
+      String stationCode = entry.value;
+      double x = startX + i * segmentWidth;
+      double y = centerY + 18;
+
+      if (i == edIndex) {
+        x = startX + saIndex * segmentWidth + segmentWidth;
+        y = centerY + 18 + branchOffsetY;
+      }
+      return Positioned(
+        left: x - 20,
+        top: y,
+        child: GestureDetector(
+          onTap: () => onStationTap(stationCode),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(stationCode, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ),
+      );
+    }).toList();
+  }
+
+  List<Widget> _buildTrainMarkers(BoxConstraints constraints) {
+    final double startX = 40;
+    final double endX = constraints.maxWidth - 40;
+    final double centerY = constraints.maxHeight / 2;
+    final double usableWidth = endX - startX;
+    final double stationInterval = usableWidth / (stations.length - 1);
+    final double mainTrack1Y = centerY - 15;
+    final double mainTrack2Y = centerY + 15;
+    final int saIndex = stations.indexOf('SA');
+    final int edIndex = stations.indexOf('ED');
+    final double branchOffsetY = 70;
+
+    return trains.map((t) {
+      double displayX = 0;
+      double displayY = 0;
+
+      final currentSectionParts = t.currentSection.split('-');
+      final startStation = currentSectionParts[0];
+      final endStation = currentSectionParts[1];
+      final startStationIndex = stations.indexOf(startStation);
+      final endStationIndex = stations.indexOf(endStation);
+
+      if (startStation == 'SA' && endStation == 'ED') {
+        // Branch line SA to ED
+        displayX = startX + saIndex * stationInterval + t.pos * stationInterval;
+        displayY = centerY + branchOffsetY;
+      } else if (startStation == 'ED' && endStation == 'SA') {
+        // Branch line ED to SA
+        displayX = startX + saIndex * stationInterval + (1.0 - t.pos) * stationInterval;
+        displayY = centerY + branchOffsetY;
+      } else {
+        // Main line
+        displayX = startX + startStationIndex * stationInterval + (endStationIndex - startStationIndex) * stationInterval * t.pos;
+        displayY = t.direction == TrainDirection.UP ? mainTrack1Y : mainTrack2Y;
+      }
+
+      return Positioned(
+        left: displayX - 25,
+        top: displayY - 25,
+        child: GestureDetector(
+          onTap: () => onTrainTap(t),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: t.direction == TrainDirection.UP ? Colors.green.shade600 : Colors.blue.shade600,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.white, width: 2),
+                boxShadow: [BoxShadow(color: Colors.white24, blurRadius: 8)],
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.train, color: Colors.white, size: 17),
+                  const SizedBox(width: 5),
+                  Text(t.id, style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    }).toList();
+  }
+}
 
 class AdvancedTrackPainter extends CustomPainter {
   final List<String> stations;
   final List<SectionTrain> trains;
+  final String highlightRoute;
 
-  AdvancedTrackPainter({required this.stations, required this.trains});
+  AdvancedTrackPainter({required this.stations, required this.trains, required this.highlightRoute});
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double startX = 48;
-    final double endX = size.width - 48;
+    final double startX = 40;
+    final double endX = size.width - 40;
     final double centerY = size.height / 2;
     final double usableWidth = endX - startX;
     final double segmentWidth = usableWidth / (stations.length - 1);
+    final Paint trackPaint = Paint()..color = Colors.white..strokeWidth = 2;
+    final Paint occupiedPaint = Paint()..color = _DashboardPageState.kpiRed..strokeWidth = 3..strokeCap = StrokeCap.round;
+    final Paint highlightPaint = Paint()..color = Colors.orange.shade700..strokeWidth = 5..strokeCap = StrokeCap.round;
+    final Paint alertLinePaint = Paint()..color = Colors.red..strokeWidth = 5..strokeCap = StrokeCap.round;
 
-    // Track colors and painters
-    final Paint mainTrack = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 3;
-    final Paint loopTrack = Paint()
-      ..color = Colors.white54
-      ..strokeWidth = 2;
-    final Paint occupiedTrack = Paint()
-      ..color = Colors.red
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round;
-
-    final TextPainter tp = TextPainter(
-      textAlign: TextAlign.center,
-      textDirection: TextDirection.ltr,
-    );
-    
-    // Check for occupied blocks
-    Map<int, bool> occupiedBlocks = {};
-    for (var train in trains) {
-      if (train.pos > 0 && train.pos < 1) {
-        int blockIndex = ((train.pos * (stations.length - 1))).floor();
-        occupiedBlocks[blockIndex] = true;
-      }
-    }
-
-    // --- Draw Mainline and Loop Tracks ---
+    // Draw main line tracks
     for (int i = 0; i < stations.length - 1; i++) {
       double x1 = startX + i * segmentWidth;
       double x2 = startX + (i + 1) * segmentWidth;
       
-      bool isOccupied = occupiedBlocks.containsKey(i);
-      Paint currentPaint = isOccupied ? occupiedTrack : mainTrack;
-
-      // Draw main lines
-      canvas.drawLine(Offset(x1, centerY - 15), Offset(x2, centerY - 15), currentPaint);
-      canvas.drawLine(Offset(x1, centerY + 15), Offset(x2, centerY + 15), currentPaint);
-
-      // Draw loop/siding tracks at stations
-      if (stations[i] == 'Arakkonam' || stations[i] == 'Tiruvallur') {
-        canvas.drawLine(Offset(x1 + 20, centerY + 45), Offset(x2 - 20, centerY + 45), loopTrack);
+      Paint currentTrackPaint = trackPaint;
+      String currentSection = "${stations[i]}-${stations[i+1]}";
+      
+      for (var train in trains) {
+        if (train.currentSection == currentSection || train.currentSection == "${stations[i+1]}-${stations[i]}") {
+          currentTrackPaint = occupiedPaint;
+          break;
+        }
       }
+      
+      canvas.drawLine(Offset(x1, centerY - 15), Offset(x2, centerY - 15), currentTrackPaint);
+      canvas.drawLine(Offset(x1, centerY + 15), Offset(x2, centerY + 15), currentTrackPaint);
+    }
+    
+    // Draw branch line from SA to ED
+    final int saIndex = stations.indexOf('SA');
+    final int edIndex = stations.indexOf('ED');
+    final double saX = startX + saIndex * segmentWidth;
+    final double edX = startX + edIndex * segmentWidth;
+    final double branchOffsetY = 70;
+    
+    // Connection from main line to branch (slanted)
+canvas.drawLine(Offset(saX, centerY + 15), Offset(saX + 20, centerY + 15 + branchOffsetY), trackPaint);
 
-      // Draw branch at AJJ
-      if (stations[i] == 'AJJ') {
-        // Branch geometry
-        final double branchStartX = x1;
-        final double branchStartY = centerY + 15;
-        final double branchTiltedX = branchStartX + 40;
-        final double branchTiltedY = branchStartY + 40;
-        final double branchHorizontalX2 = branchTiltedX + 100;
-        final double branchHorizontalY = branchTiltedY;
-        // If branch train is present and on branch, draw red line
-        final branchTrain = trains.where((t) => t.id == 'BRANCH1').toList();
-        bool showRed = branchTrain.isNotEmpty && branchTrain.first.pos > 0.0 && branchTrain.first.pos < 1.0;
-        Paint branchPaint = showRed ? occupiedTrack : mainTrack;
-        // Tilted branch
-        canvas.drawLine(
-          Offset(branchStartX, branchStartY),
-          Offset(branchTiltedX, branchTiltedY),
-          branchPaint
-        );
-        // Horizontal branch
-        canvas.drawLine(
-          Offset(branchTiltedX, branchTiltedY),
-          Offset(branchHorizontalX2, branchHorizontalY),
-          branchPaint
-        );
-        // Draw TRT station at end
-        canvas.drawLine(
-          Offset(branchHorizontalX2, branchHorizontalY - 25),
-          Offset(branchHorizontalX2, branchHorizontalY + 25),
-          mainTrack
-        );
-        tp.text = TextSpan(
-          text: 'TRT',
-          style: const TextStyle(color: Colors.yellow, fontSize: 12, fontWeight: FontWeight.bold),
-        );
-        tp.layout();
-        tp.paint(canvas, Offset(branchHorizontalX2 - tp.width / 2, branchHorizontalY + 30));
-        // Draw signals at TRT
-        final signalPaint = Paint()..color = showRed ? Colors.red : Colors.green;
-        canvas.drawCircle(Offset(branchHorizontalX2 - 10, branchHorizontalY - 15), 4, signalPaint);
-        canvas.drawCircle(Offset(branchHorizontalX2 + 10, branchHorizontalY - 15), 4, signalPaint);
+// Branch track itself (horizontal)
+canvas.drawLine(Offset(saX + 20, centerY + 15 + branchOffsetY), Offset(edX, centerY + 15 + branchOffsetY), trackPaint);
+
+    // Draw alert on the branch
+    if (highlightRoute.isNotEmpty) {
+      final List<String> routeStations = highlightRoute.split('-');
+      if (routeStations.length == 2) {
+        final String start = routeStations[0];
+        final String end = routeStations[1];
+        
+        final int startIndex = stations.indexOf(start);
+        final int endIndex = stations.indexOf(end);
+        
+        if (startIndex != -1 && endIndex != -1) {
+          double startXPos = startX + startIndex * segmentWidth;
+          double endXPos = startX + endIndex * segmentWidth;
+          double yPos = centerY + 15;
+          
+          if (start == 'SA' && end == 'ED' || start == 'ED' && end == 'SA') {
+            startXPos = saX + 5;
+            endXPos = edX;
+            yPos = centerY + 15 + branchOffsetY;
+          }
+
+          canvas.drawLine(Offset(startXPos, yPos), Offset(endXPos, yPos), alertLinePaint);
+        }
       }
     }
-
-    // --- Draw Station Icons and Labels ---
+    
+    // Draw station markers and labels
     for (int i = 0; i < stations.length; i++) {
       double x = startX + i * segmentWidth;
+      double y = centerY;
+      if (stations[i] == 'ED') {
+        x = startX + saIndex * segmentWidth + segmentWidth;
+        y += branchOffsetY;
+      }
       
-      // Vertical station tick
-      canvas.drawLine(Offset(x, centerY - 25), Offset(x, centerY + 25), mainTrack);
-      
-      // Station name label
-      tp.text = TextSpan(
-        text: stations[i],
-        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-      );
-      tp.layout();
-      tp.paint(canvas, Offset(x - tp.width / 2, centerY + 30));
-
-      // Signal icons
-      final signalPaint = Paint()
-        ..color = (occupiedBlocks.containsKey(i) && i > 0) ? Colors.red : Colors.green;
-      
-      // Left signal
-      canvas.drawCircle(Offset(x - 10, centerY - 15), 4, signalPaint);
-      // Right signal
-      canvas.drawCircle(Offset(x + 10, centerY - 15), 4, signalPaint);
+      final Paint stationPaint = Paint()..color = Colors.white..style = PaintingStyle.fill;
+      canvas.drawCircle(Offset(x, y), 6, stationPaint);
     }
   }
 
   @override
-  bool shouldRepaint(covariant AdvancedTrackPainter oldDelegate) {
-    // Only repaint if the train data has changed
-    return !listEquals(oldDelegate.trains, trains);
-  }
-  
-  bool listEquals(List<SectionTrain> a, List<SectionTrain> b) {
-    if (a.length != b.length) return false;
-    for (int i = 0; i < a.length; i++) {
-      if (a[i].pos != b[i].pos) return false;
-    }
-    return true;
-  }
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
 
-// -------------------------- Model --------------------------
-enum TrainDirection { UP, DOWN }
-
-class SectionTrain {
-  final String id;
-  final String name;
-  double pos; // 0..1 along the section
-  TrainDirection direction;
-  String status;
-  String eta;
-
-  SectionTrain({
-    required this.id,
-    required this.name,
-    required this.pos,
-    required this.direction,
-    required this.status,
-    required this.eta,
-  });
+// Helper widget for a small info chip
+class _infoChip extends StatelessWidget {
+  final String text;
+  final Color color;
+  const _infoChip(this.text, this.color, {Key? key}) : super(key: key);
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(color: color.withOpacity(0.08), borderRadius: BorderRadius.circular(16)),
+      child: Text(text, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w500)),
+    );
+  }
 }

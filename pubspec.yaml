@@ -1,4 +1,4 @@
-name: ai_railway_full_ui
+name: Railway_DSS
 description: Complete AI Railway DSS UI with all modules and mock data
 publish_to: "none"
 version: 1.0.0+1
@@ -8,6 +8,8 @@ dependencies:
   flutter:
     sdk: flutter
   charts_flutter: ^0.12.0
+  google_fonts: ^6.2.1 
+  fl_chart: ^0.69.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -20,3 +22,16 @@ flutter:
   # This is the section where you will add your image assets.
   assets:
     - assets/indian_railways_logo.jpeg
+    - assets/indian_railways_bg.jpg
+    - assets/indian_railways_bg2.jpg
+    - assets/indian_railways_bg3.jpg
+    - assets/indian_railways_bg4.jpg
+    - assets/indian_railways_bg5.jpg
+    - assets/title_page_img.png
+    - assets/train_loco.jpg
+    - assets/chennai_central.jpg
+    - assets/Bengaluru.jpg
+    - assets/sanghamitra.jpg
+    - assets/mumbai.jpg
+    - assets/yercaud.jpg
+    - assets/Mysuru.jpg
