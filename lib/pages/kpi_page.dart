@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
-import '../theme/ir_theme.dart';
+import 'package:fl_chart/fl_chart.dart';
 
-class KpiPage extends StatefulWidget {
-  @override
-  _KpiPageState createState() => _KpiPageState();
-}
-
-class _KpiPageState extends State<KpiPage> {
-  // Dashboard-style gradient colors
-  static const Color _appBarStart = Color(0xFF003366);
-  static const Color _appBarEnd = Color(0xFF1A2636);
-  static const Color _cardBg = Colors.white;
-  static const Color _sectionBg = Color(0xFFF3F6FA);
+class KpiPage extends StatelessWidget {
+  // Re-using colors from Dashboard for consistency
+  static const Color irPrimaryBlue = Color(0xFF0B2B4E);
+  static const Color textColor = Color(0xFF1E293B);
+  static const Color secondaryTextColor = Color(0xFF64748B);
+  static const Color dashboardBg = Color(0xFFF0F2F5);
 
   // Placeholder dynamic KPI data
   Map<String, dynamic> kpiData = {
@@ -19,236 +14,62 @@ class _KpiPageState extends State<KpiPage> {
     'averageDelay': 3.5,
     'throughput': 58,
     'trackUtilization': 78,
+    'networkEfficiency': 85,
+    'platformUtilization': 72,
+    'trainPunctuality': 92,
+    'criticalAlerts': 3,
   };
+
+  // Mock data for the bar chart
+  final List<double> weeklyThroughput = [55, 62, 58, 65, 70, 68, 58];
+
+  KpiPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: _sectionBg,
-      appBar: PreferredSize(
-        preferredSize: Size.fromHeight(60),
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [_appBarStart, _appBarEnd],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 8)],
-          ),
-          child: Row(
-            children: [
-              SizedBox(width: 18),
-              Image.asset(
-                'assets/indian_railways_logo.jpeg',
-                height: 40,
-                width: 40,
-                errorBuilder: (_, __, ___) =>
-                    Icon(Icons.train, color: Colors.white, size: 36),
-              ),
-              SizedBox(width: 14),
-              Text(
-                'KPIs Dashboard',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 22,
-                    letterSpacing: 2),
-              ),
-              Spacer(),
-              Icon(Icons.show_chart, color: Colors.amberAccent),
-              SizedBox(width: 8),
-              Text(
-                'IR Section Controller',
-                style: TextStyle(
-                    color: Colors.white70, fontWeight: FontWeight.w600),
-              ),
-              SizedBox(width: 18),
-            ],
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // ================= KPI Cards Section =================
-            Container(
-              padding: EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: _cardBg,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.insights, color: Colors.blueAccent),
-                      SizedBox(width: 8),
-                      Text(
-                        'Performance KPIs',
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: _appBarEnd),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                          child: kpiCard(
-                              title: "On-Time %",
-                              value: "${kpiData['onTimePercent']}%",
-                              color: Colors.green,
-                              icon: Icons.schedule)),
-                      SizedBox(width: 16),
-                      Expanded(
-                          child: kpiCard(
-                              title: "Average Delay",
-                              value: "${kpiData['averageDelay']} min",
-                              color: Colors.red,
-                              icon: Icons.timer)),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                          child: kpiCard(
-                              title: "Throughput",
-                              value: "${kpiData['throughput']} Trains",
-                              color: Colors.blue,
-                              icon: Icons.train)),
-                      SizedBox(width: 16),
-                      Expanded(
-                          child: kpiCard(
-                              title: "Track Utilization",
-                              value: "${kpiData['trackUtilization']}%",
-                              color: Colors.orange,
-                              icon: Icons.track_changes)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 20),
-
-            // ================= KPI Graph / Progress Section =================
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: _cardBg,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 6)],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.timeline, color: Colors.amberAccent),
-                      SizedBox(width: 8),
-                      Text(
-                        "Realtime Performance Indicators",
-                        style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: _appBarEnd),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  buildProgressBar(
-                      label: "Network Efficiency", value: 0.85, color: Colors.green),
-                  buildProgressBar(
-                      label: "Platform Utilization", value: 0.72, color: Colors.orange),
-                  buildProgressBar(
-                      label: "Train Punctuality", value: 0.92, color: Colors.blue),
-                  SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: buildCircularKpi(
-                            label: "Daily Trains",
-                            value: 58,
-                            maxValue: 100,
-                            color: _appBarEnd),
-                      ),
-                      SizedBox(width: 16),
-                      Expanded(
-                        child: buildCircularKpi(
-                            label: "Late Trains",
-                            value: 8,
-                            maxValue: 100,
-                            color: Colors.red),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            SizedBox(height: 20), // Extra space at bottom for safe scroll
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ================= KPI Card =================
-  Widget kpiCard({
-    required String title,
-    required String value,
-    required Color color,
-    required IconData icon,
-  }) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: color, size: 28),
-                SizedBox(width: 10),
-                Text(title,
-                    style:
-                        TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              ],
-            ),
-            SizedBox(height: 12),
-            Text(value,
-                style: TextStyle(
-                    fontSize: 26, fontWeight: FontWeight.bold, color: color)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ================= Linear Progress Bars =================
-  Widget buildProgressBar(
-      {required String label, required double value, required Color color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("$label: ${(value * 100).toStringAsFixed(1)}%",
-              style: TextStyle(fontSize: 16)),
-          SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: LinearProgressIndicator(
-              value: value,
-              minHeight: 16,
-              color: color,
-              backgroundColor: Colors.grey[300],
+          Text("Key Performance Indicators", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28, color: textColor)),
+          const SizedBox(height: 12),
+          Text("Divisional performance metrics for the current operational day.", style: TextStyle(fontSize: 14, color: secondaryTextColor)),
+          const SizedBox(height: 30),
+
+          // Main KPI Cards
+          Wrap(
+            spacing: 20,
+            runSpacing: 20,
+            children: [
+              kpiCard(title: "On-Time Percentage", value: "${kpiData['onTimePercent']}%", trend: "up", change: "+1.2%"),
+              kpiCard(title: "Average Delay", value: "${kpiData['averageDelay']} min", trend: "down", change: "-0.5 min"),
+              kpiCard(title: "Daily Throughput", value: "${kpiData['throughput']} Trains", trend: "up", change: "+3"),
+              kpiCard(title: "Critical Alerts", value: "${kpiData['criticalAlerts']}", trend: "neutral", change: "0"),
+            ],
+          ),
+          const SizedBox(height: 40),
+
+          // Secondary Metrics Section
+          _buildSection(
+            title: "Operational Efficiency",
+            icon: Icons.insights,
+            child: Column(
+              children: [_buildEfficiencyChart()],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Key Metrics List
+          _buildSection(
+            title: "Punctuality Breakdown",
+            icon: Icons.pie_chart_outline,
+            child: Column(
+              children: [
+                _buildMetricRow("On-Time Trains", "50"),
+                _buildMetricRow("Minor Delays (< 15 min)", "6"),
+                _buildMetricRow("Major Delays (> 15 min)", "2"),
+              ],
             ),
           ),
         ],
@@ -256,37 +77,176 @@ class _KpiPageState extends State<KpiPage> {
     );
   }
 
-  // ================= Circular KPI Indicator =================
-  Widget buildCircularKpi({
-    required String label,
-    required double value,
-    required double maxValue,
-    required Color color,
-  }) {
-    double percentage = (value / maxValue).clamp(0, 1);
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Row(
+  Widget _buildSection({required String title, required IconData icon, required Widget child}) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            alignment: Alignment.center,
+          Row(
             children: [
-              SizedBox(
-                width: 70,
-                height: 70,
-                child: CircularProgressIndicator(
-                  value: percentage,
-                  color: color,
-                  backgroundColor: Colors.grey[300],
-                  strokeWidth: 8,
-                ),
-              ),
-              Text("${(percentage * 100).toStringAsFixed(0)}%",
-                  style: TextStyle(fontWeight: FontWeight.bold)),
+              Icon(icon, color: irPrimaryBlue, size: 20),
+              const SizedBox(width: 10),
+              Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
             ],
           ),
-          SizedBox(width: 16),
-          Text(label, style: TextStyle(fontSize: 16)),
+          const Divider(height: 24),
+          child,
+        ],
+      ),
+    );
+  }
+
+  Widget kpiCard({required String title, required String value, required String trend, required String change}) {
+    final trendIcon = trend == "up" ? Icons.arrow_upward : (trend == "down" ? Icons.arrow_downward : Icons.remove);
+    final trendColor = trend == "up" ? Colors.green : (trend == "down" ? Colors.red : Colors.grey);
+
+    return Container(
+      width: 250,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 15, color: secondaryTextColor, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: irPrimaryBlue)),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(trendIcon, color: trendColor, size: 16),
+              const SizedBox(width: 4),
+              Text(change, style: TextStyle(color: trendColor, fontWeight: FontWeight.bold)),
+              const SizedBox(width: 4),
+              Text("vs yesterday", style: TextStyle(color: secondaryTextColor, fontSize: 12)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEfficiencyChart() {
+    return SizedBox(
+      height: 200,
+      child: BarChart(
+        BarChartData(
+          alignment: BarChartAlignment.spaceAround,
+          maxY: 100,
+          barTouchData: BarTouchData(
+            enabled: true,
+            touchTooltipData: BarTouchTooltipData(
+              getTooltipColor: (_) => Colors.black87,
+              getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                String label;
+                switch (group.x.toInt()) {
+                  case 0:
+                    label = 'Track Utilization';
+                    break;
+                  case 1:
+                    label = 'Network Efficiency';
+                    break;
+                  case 2:
+                    label = 'Platform Utilization';
+                    break;
+                  default:
+                    throw Error();
+                }
+                return BarTooltipItem(
+                  '$label\n',
+                  const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  children: <TextSpan>[
+                    TextSpan(
+                      text: rod.toY.toStringAsFixed(0) + '%',
+                      style: const TextStyle(color: irPrimaryBlue, fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          titlesData: FlTitlesData(
+            show: true,
+            bottomTitles: AxisTitles(
+              sideTitles: SideTitles(
+                showTitles: true,
+                getTitlesWidget: (double value, TitleMeta meta) {
+                  const style = TextStyle(color: secondaryTextColor, fontWeight: FontWeight.bold, fontSize: 14);
+                  String text;
+                  switch (value.toInt()) {
+                    case 0:
+                      text = 'Track';
+                      break;
+                    case 1:
+                      text = 'Network';
+                      break;
+                    case 2:
+                      text = 'Platform';
+                      break;
+                    default:
+                      text = '';
+                      break;
+                  }
+                  return SideTitleWidget(axisSide: meta.axisSide, space: 16, child: Text(text, style: style));
+                },
+                reservedSize: 38,
+              ),
+            ),
+            leftTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            rightTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          ),
+          borderData: FlBorderData(show: false),
+          barGroups: [
+            _makeBarGroup(0, kpiData['trackUtilization'].toDouble()),
+            _makeBarGroup(1, kpiData['networkEfficiency'].toDouble()),
+            _makeBarGroup(2, kpiData['platformUtilization'].toDouble()),
+          ],
+          gridData: FlGridData(show: false),
+        ),
+      ),
+    );
+  }
+
+  BarChartGroupData _makeBarGroup(int x, double y) {
+    return BarChartGroupData(
+      x: x,
+      barRods: [
+        BarChartRodData(
+          toY: y,
+          color: irPrimaryBlue,
+          width: 22,
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(6),
+            topRight: Radius.circular(6),
+          ),
+          backDrawRodData: BackgroundBarChartRodData(
+            show: true,
+            toY: 100,
+            color: Colors.grey.shade200,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(fontSize: 16, color: secondaryTextColor)),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
         ],
       ),
     );

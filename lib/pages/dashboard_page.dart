@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import 'package:url_launcher/url_launcher.dart';
+
+import 'chatbot_page.dart';
+import 'kpi_page.dart';
+import 'simulation_page.dart';
+import 'user_details_page.dart';
 
 // Data Models
 enum TrainDirection { UP, DOWN }
@@ -29,31 +35,6 @@ class SectionTrain {
     required this.delay,
     required this.currentSection,
   });
-}
-
-void main() {
-  runApp(const RailwayDashboardApp());
-}
-
-class RailwayDashboardApp extends StatelessWidget {
-  const RailwayDashboardApp({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Section Control',
-      theme: ThemeData(
-        fontFamily: 'Roboto',
-        primaryColor: _DashboardPageState.irPrimaryBlue,
-        scaffoldBackgroundColor: _DashboardPageState.dashboardBg,
-        cardTheme: CardTheme(
-          elevation: 4,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      ),
-      home: const DashboardPage(),
-    );
-  }
 }
 
 // --- Dashboard Page ---
@@ -112,6 +93,18 @@ final Map<String, String> _trainImages = {
   String selectedAlertRoute = "";
   Timer? _animTimer;
   final Random _rand = Random();
+  final TextEditingController _searchController = TextEditingController();
+  int _selectedPageIndex = 0;
+
+  // List of pages for navigation
+  late final List<Widget> _pages;
+
+  // --- Paste your website links here ---
+  final Map<String, String> _relatedLinks = {
+    'tms': 'https://ircep.gov.in/TMS/', // Example URL for TMS
+    'ctc': 'https://cris.org.in/', // Example URL for CTC
+    'fois': 'https://www.fois.indianrail.gov.in/FOISWebPortal/index.jsp', // Example URL for FOIS
+  };
 
   List<SectionTrain> get filteredTrains {
     if (trainFilter == "All") return sectionTrains;
@@ -119,192 +112,219 @@ final Map<String, String> _trainImages = {
     if (trainFilter == "On-time") return sectionTrains.where((t) => t.delay == 0).toList();
     return sectionTrains;
   }
-
-  @override
-  void initState() {
-    super.initState();
-    _animTimer = Timer.periodic(const Duration(milliseconds: 700), (_) {
-      setState(() {
-        for (var t in sectionTrains) {
-          double speed = (t.status == 'Delayed') ? 0.003 : 0.01;
-          if (t.direction == TrainDirection.UP) {
-            t.pos += speed * (_rand.nextDouble() + 0.2);
-            if (t.pos > 1.0) t.pos = 0.0;
-          } else {
-            t.pos -= speed * (_rand.nextDouble() + 0.2);
-            if (t.pos < 0.0) t.pos = 1.0;
-          }
+@override
+void initState() {
+  super.initState();
+  // Initialize pages here. It's safe because _buildDashboardContent is a method of this state.
+  _pages = [
+    _buildDashboardContent(), // Main dashboard view
+    KpiPage(),
+    SimulationPage(),
+  ];
+  _animTimer = Timer.periodic(const Duration(milliseconds: 700), (_) {
+    if (!mounted) return;
+    setState(() {
+      for (var t in sectionTrains) {
+        double speed = (t.status == 'Delayed') ? 0.003 : 0.01;
+        if (t.direction == TrainDirection.UP) {
+          t.pos += speed * (_rand.nextDouble() + 0.2);
+          if (t.pos > 1.0) t.pos = 0.0;
+        } else {
+          t.pos -= speed * (_rand.nextDouble() + 0.2);
+          if (t.pos < 0.0) t.pos = 1.0;
         }
-      });
+      }
     });
-  }
+  });
+}
 
-  @override
-  void dispose() {
-    _animTimer?.cancel();
-    super.dispose();
-  }
+@override
+void dispose() {
+  _animTimer?.cancel();
+  _searchController.dispose();
+  super.dispose();
+}
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: dashboardBg,
-      body: SafeArea(
-        child: Row(
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: dashboardBg,
+    body: SafeArea(
+      child: Column(
+        children: [
+          // Top Header
+          _header(),
+          // Sub-header Status strip
+          _subHeaderStatus(),
+          // Main content
+          Expanded(child: _pages[_selectedPageIndex]),
+          // Footer
+          _footer(),
+        ],
+      ),
+    ),
+    floatingActionButton: FloatingActionButton(
+      backgroundColor: irPrimaryBlue,
+      onPressed: () {
+        Navigator.push(
+            context, MaterialPageRoute(builder: (_) => ChatbotPage())); // Now uses the new file
+      },
+      child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
+    ),
+  );
+}
+
+// --- Top Header ---
+Widget _header() {
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        colors: [irPrimaryBlue, irPrimaryBlue.withOpacity(0.8)],
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+      ),
+      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: Offset(0, 4))],
+    ),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        // Left Side: Logos and Title
+        Row(
           children: [
-            // Sidebar
-            _sidebar(),
-            // Main content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Page Header
-                    Text("Control Dashboard", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 28, color: textColor)),
-                    const SizedBox(height: 12),
-                    Text("Real-time operational overview for Madras Division", style: TextStyle(fontSize: 14, color: secondaryTextColor)),
-                    const SizedBox(height: 30),
-                    // KPIs
-                    _kpiWrap(),
-                    const SizedBox(height: 30),
-                    // Panels grid (map, trains, alerts)
-                    _dashboardPanels(),
-                  ],
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.asset(
+                'assets/indian_railways_front.jpg',
+                height: 50,
+                width: 50,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.train, color: Colors.white, size: 36),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Government of India | Ministry of Railways",
+                  style: TextStyle(color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w500),
                 ),
+                SizedBox(height: 2),
+                Text(
+                  "AI-Powered Decision Support System",
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16, letterSpacing: 0.5),
+                ),
+              ],
+            ),
+          ],
+        ),
+        // Right Side: Search, Actions, and User
+        Row(
+          children: [
+            // Search Bar
+            Container(
+              width: 250,
+              height: 40,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: TextField(
+                controller: _searchController,
+                style: TextStyle(color: Colors.black, fontSize: 14),
+                onSubmitted: _performSearch,
+                decoration: InputDecoration(
+                  hintText: "Search Train No, Station...",
+                  hintStyle: TextStyle(color: Colors.black87, fontSize: 14),
+                  prefixIcon: Icon(Icons.search, color: Colors.black87, size: 20),
+                  border: InputBorder.none,
+                  contentPadding: EdgeInsets.symmetric(vertical: 11),
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            // Accessibility Icons
+            _accessibilityIcon("A-", size: 12),
+            _accessibilityIcon("A", size: 14),
+            _accessibilityIcon("A+", size: 16),
+            const SizedBox(width: 10),
+            // User Button
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const UserDetailsPage()),
+                );
+              },
+              icon: Icon(Icons.person, size: 18, color: irPrimaryBlue),
+              label: Text("User", style: TextStyle(fontWeight: FontWeight.bold, color: irPrimaryBlue)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: irGold,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                elevation: 4,
               ),
             ),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: irPrimaryBlue,
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => ChatbotPage()));
-        },
-        child: const Icon(Icons.chat_bubble_outline, color: Colors.white),
-      ),
-    );
-  }
-
-  // --- Widget Builders ---
-  Widget _sidebar() {
-    return Container(
-      width: 250.0,
-      decoration: BoxDecoration(
-        color: irPrimaryBlue,
-        boxShadow: [BoxShadow(blurRadius: 13, color: Colors.black.withOpacity(0.07), offset: const Offset(0, 4))],
-      ),
-      padding: const EdgeInsets.symmetric(vertical: 21, horizontal: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.train, color: irGold, size: 28),
-              const SizedBox(width: 8),
-              Text("Section Control", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-            ],
-          ),
-          const SizedBox(height: 25),
-          _sidebarBtn(Icons.dashboard_rounded, "Control Dashboard", selected: true),
-          _sidebarBtn(Icons.directions_subway, "Live Movements", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => LiveMovementsPage()))),
-          _sidebarBtn(Icons.lightbulb_outline, "AI-Recommendation", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiRecommendationsPage()))),
-          _sidebarBtn(Icons.bar_chart, "Reports & Analytics", onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ReportsAnalyticsPage()))),
-          const SizedBox(height: 20),
-          _sidebarStatus(),
-          const Spacer(),
-          const Divider(color: Colors.white24, height: 20),
-          Row(
-            children: [
-              CircleAvatar(backgroundColor: irGold, child: Text('SC', style: TextStyle(color: irPrimaryBlue, fontWeight: FontWeight.bold))),
-              const SizedBox(width: 10),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Section Controller", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-                  Text("Madras Division", style: TextStyle(fontSize: 12, color: Colors.white70)),
-                ],
-              )
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sidebarBtn(IconData icon, String label, {bool selected = false, VoidCallback? onTap}) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(12),
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 10),
-        margin: const EdgeInsets.symmetric(vertical: 4),
-        decoration: BoxDecoration(
-          color: selected ? Colors.white.withOpacity(0.13) : Colors.transparent,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: selected ? irGold : Colors.white70, size: 20),
-            const SizedBox(width: 10),
-            Text(label, style: TextStyle(fontWeight: selected ? FontWeight.bold : FontWeight.normal, fontSize: 15, color: selected ? Colors.white : Colors.white70)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _sidebarStatus() {
-    String istTime = TimeOfDay.now().format(context);
-    return Container(
-      decoration: BoxDecoration(
-        color: irPrimaryBlue.withOpacity(0.5),
-        borderRadius: BorderRadius.circular(11),
-        border: Border.all(color: irGold.withOpacity(0.2)),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text("SYSTEM STATUS", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 10, color: Colors.white54)),
-          const SizedBox(height: 6),
-          _statusRow(Icons.power, "Online", online ? kpiGreen : kpiRed),
-          _statusRow(Icons.access_time, "IST Time: $istTime", Colors.white),
-          _statusRow(Icons.train, "Active Trains: $activeTrains", irGold),
-          _statusRow(Icons.warning_amber_rounded, "Alerts: ${alerts.length}", kpiRed),
-        ],
-      ),
-    );
-  }
-
-  Widget _statusRow(IconData icon, String text, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: color),
-          const SizedBox(width: 6),
-          Text(text, style: TextStyle(fontSize: 12, color: color)),
-        ],
-      ),
-    );
-  }
-
-  Widget _kpiWrap() {
-    return Wrap(
-      spacing: 20,
-      runSpacing: 20,
-      alignment: WrapAlignment.start,
-      children: [
-        _kpiCard(title: "Active Trains", value: "$activeTrains", icon: Icons.train_rounded, accent: irPrimaryBlue),
-        _kpiCard(title: "On-Time %", value: "${_calculateOnTime()}%", icon: Icons.av_timer_rounded, accent: _onTimeColor()),
-        _kpiCard(title: "Critical Alerts", value: "${_criticalAlertsCount()}", icon: Icons.error_rounded, accent: kpiRed),
-        _kpiCard(title: "RAILOPT-AI", value: "3", icon: Icons.lightbulb, accent: irGold, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AiRecommendationsPage()))),
       ],
-    );
-  }
+    ),
+  );
+}
+
+Widget _accessibilityIcon(String label, {double size = 14}) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 2),
+    child: InkWell(
+      onTap: () {},
+      borderRadius: BorderRadius.circular(4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.white54, width: 1),
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(label, style: TextStyle(color: Colors.white, fontSize: size, fontWeight: FontWeight.bold)),
+      ),
+    ),
+  );
+}
+
+// --- Stylish Sub-header Status ---
+Widget _subHeaderStatus() {
+  String istTime = TimeOfDay.now().format(context);
+  return Material(
+    elevation: 2,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+      color: Colors.white,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Navigation buttons moved here
+          Row(
+            children: [
+              _headerNavBtn("Dashboard", 0),
+              _headerNavBtn("KPIs", 1),
+              _headerNavBtn("Simulation Lab", 2),
+              _headerNavBtn("Reports", 3, isDisabled: true), // Example of a disabled button
+            ],
+          ),
+          // Status indicators
+          Row(
+            children: [
+              _statusCard(Icons.power, "Online", kpiGreen),
+              _statusCard(Icons.access_time, "IST: $istTime", textColor),
+              _statusCard(Icons.train, "Active Trains: $activeTrains", irPrimaryBlue),
+              _statusCard(Icons.warning_amber_rounded, "Alerts: ${alerts.length}", kpiRed),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}
 
   Widget _kpiCard({required String title, required String value, required IconData icon, required Color accent, VoidCallback? onTap}) {
     return InkWell(
@@ -315,25 +335,73 @@ final Map<String, String> _trainImages = {
         height: 100,
         decoration: BoxDecoration(
           color: cardColor,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 4))],
         ),
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Row(
               children: [
                 Icon(icon, color: accent, size: 24),
                 const SizedBox(width: 8),
-                Expanded(child: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: secondaryTextColor, fontSize: 14))),
+                Expanded(child: Text(title, style: TextStyle(fontWeight: FontWeight.w600, color: secondaryTextColor, fontSize: 15))),
               ],
             ),
             const SizedBox(height: 6),
             Text(value, style: TextStyle(fontWeight: FontWeight.bold, color: textColor, fontSize: 24)),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardContent() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("Control Dashboard",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 28,
+                  color: textColor)),
+          const SizedBox(height: 12),
+          Text(
+              "Real-time operational overview for Madras Division",
+              style:
+                  TextStyle(fontSize: 14, color: secondaryTextColor)),
+          const SizedBox(height: 30),
+          Row(
+            children: [
+              _kpiCard(
+                title: "Active Trains",
+                value: "$activeTrains",
+                icon: Icons.train_rounded,
+                accent: irPrimaryBlue,
+              ),
+              const SizedBox(width: 20),
+              _kpiCard(
+                title: "Delayed Trains",
+                value: "${sectionTrains.where((t) => t.delay > 0).length}",
+                icon: Icons.timer_off_outlined,
+                accent: kpiOrange,
+              ),
+              const SizedBox(width: 20),
+              _kpiCard(
+                title: "On-Time %",
+                value: "${_calculateOnTime()}%",
+                icon: Icons.pie_chart_outline_rounded,
+                accent: _onTimeColor(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 30),
+          _dashboardPanels(),
+        ],
       ),
     );
   }
@@ -372,7 +440,7 @@ final Map<String, String> _trainImages = {
       height: height,
       decoration: BoxDecoration(
         color: cardColor,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black.withOpacity(0.05), offset: const Offset(0, 4))],
       ),
       child: child,
@@ -474,10 +542,11 @@ final Map<String, String> _trainImages = {
               itemBuilder: (_, i) => Dismissible(
                 key: Key(alerts[i]["route"]),
                 onDismissed: (direction) {
+                  final dismissedAlert = alerts[i];
                   setState(() {
                     alerts.removeAt(i);
                     // Reset highlight if dismissed route was highlighted
-                    if (selectedAlertRoute == alerts[i]["route"]) {
+                    if (selectedAlertRoute == dismissedAlert["route"]) {
                       selectedAlertRoute = "";
                     }
                   });
@@ -591,12 +660,27 @@ final Map<String, String> _trainImages = {
   }
 
   // The void _showStationDetails function
+void _showAboutUsDialog(BuildContext context) {
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        backgroundColor: cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("About This Project", style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [ Text("AI-Powered Decision Support System for Indian Railways.", style: TextStyle(fontSize: 16)), SizedBox(height: 16), Text("Designed by:", style: TextStyle(color: secondaryTextColor)), Text("Hackitects", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: irPrimaryBlue)),],),
+        actions: [TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text("Close"))],
+      );
+    },
+  );
+}
 void _showStationDetails(String stationCode) {
   showDialog(
     context: context,
     builder: (BuildContext context) {
       int trainsAtStation = sectionTrains.where((t) => 
           t.currentSection.contains(stationCode) ||
+          // This logic might need refinement based on how you define "at station"
           (stationList.indexOf(t.currentSection.split('-').first) == stationList.indexOf(stationCode))
       ).length;
       int activeAlerts = alerts.where((a) => a["route"].contains(stationCode)).length;
@@ -608,7 +692,7 @@ void _showStationDetails(String stationCode) {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text("Current Status: All Clear", style: TextStyle(color: kpiGreen, fontWeight: FontWeight.bold)),
+            Text("Current Status: All Clear", style: TextStyle(color: _DashboardPageState.kpiGreen, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             _detailRow(Icons.train, "Trains in Vicinity:", "$trainsAtStation"),
             _detailRow(Icons.warning, "Active Alerts:", "$activeAlerts"),
@@ -617,7 +701,7 @@ void _showStationDetails(String stationCode) {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Close", style: TextStyle(color: irPrimaryBlue, fontWeight: FontWeight.bold)),
+            child: const Text("Close", style: TextStyle(color: _DashboardPageState.irPrimaryBlue, fontWeight: FontWeight.bold)),
           ),
         ],
       );
@@ -638,7 +722,7 @@ void _showTrainDetails(SectionTrain t) {
           children: [
             Icon(Icons.directions_train, color: irPrimaryBlue),
             const SizedBox(width: 10),
-            Text("${t.id} - ${t.name}", style: TextStyle(fontWeight: FontWeight.bold, color: textColor)),
+            Text("${t.id} - ${t.name}", style: TextStyle(fontWeight: FontWeight.bold, color: _DashboardPageState.textColor)),
           ],
         ),
         content: SingleChildScrollView(
@@ -672,7 +756,7 @@ void _showTrainDetails(SectionTrain t) {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Close", style: TextStyle(color: irPrimaryBlue, fontWeight: FontWeight.bold)),
+            child: const Text("Close", style: TextStyle(color: _DashboardPageState.irPrimaryBlue, fontWeight: FontWeight.bold)),
           ),
         ],
       );
@@ -680,6 +764,138 @@ void _showTrainDetails(SectionTrain t) {
   );
 }
 
+Widget _headerNavBtn(String label, int index, {bool isDisabled = false}) {
+  final bool isSelected = _selectedPageIndex == index;
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    child: InkWell(
+      onTap: isDisabled ? null : () {
+        setState(() {
+          _selectedPageIndex = index;
+        });
+      },
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? irPrimaryBlue.withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isDisabled ? Colors.grey : (isSelected ? irPrimaryBlue : textColor),
+            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            fontSize: 14,
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _statusCard(IconData icon, String text, Color color) {
+  return Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 6),
+        Text(text, style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
+      ],
+    ),
+  );
+}
+
+// --- Footer ---
+Widget _footer() {
+  return Container(
+    color: irPrimaryBlue.withOpacity(0.95),
+    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text("© 2025 Section Control | Madras Division", style: TextStyle(color: Colors.white70, fontSize: 12)),
+        Row(
+          children: [
+            _footerButton(Icons.help_outline, "Enquiries", () {}),
+            const SizedBox(width: 12),
+            _footerButton(Icons.info_outline, "About Us", () {
+              _showAboutUsDialog(context);
+            }),
+            const SizedBox(width: 12),
+            _relatedLinksMenu(),
+          ],
+        )
+      ],
+    ),
+  );
+}
+
+Widget _footerButton(IconData icon, String label, VoidCallback onPressed) {
+  return TextButton.icon(
+    onPressed: onPressed,
+    icon: Icon(icon, color: Colors.white70, size: 16),
+    label: Text(label, style: TextStyle(color: Colors.white, fontSize: 12)),
+    style: TextButton.styleFrom(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    ),
+  );
+}
+
+Widget _relatedLinksMenu() {
+  return PopupMenuButton<String>(
+    onSelected: (value) {
+      final url = _relatedLinks[value]; 
+      if (url != null) {
+        _launchURL(url);
+      }
+    },
+    offset: const Offset(0, -130), // Position menu above the button
+    color: cardColor,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+      const PopupMenuItem<String>(
+        value: 'tms',
+        child: ListTile(leading: Icon(Icons.traffic), title: Text('TMS - Traffic Management')),
+      ),
+      const PopupMenuItem<String>(
+        value: 'ctc',
+        child: ListTile(leading: Icon(Icons.hub), title: Text('CTC - Centralized Traffic Control')),
+      ),
+      const PopupMenuItem<String>(
+        value: 'fois',
+        child: ListTile(leading: Icon(Icons.local_shipping), title: Text('FOIS - Freight Operations')),
+      ),
+    ],
+    tooltip: "Show related software links",
+    child: InkWell(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            Icon(Icons.link, color: Colors.white70, size: 16),
+            const SizedBox(width: 6),
+            Text("Related Links", style: TextStyle(color: Colors.white, fontSize: 12)),
+            Icon(Icons.arrow_drop_up, color: Colors.white70, size: 20),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+void _launchURL(String urlString) async {
+  final Uri url = Uri.parse(urlString);
+  if (!await launchUrl(
+    url,
+    mode: LaunchMode.externalApplication, // Opens in a browser outside the app
+  )) {
+    // You can add a snackbar or alert here to notify the user of the failure
+    print('Could not launch $urlString');
+  }
+}
 
   Widget _detailRow(IconData icon, String label, String value) {
     return Padding(
@@ -709,188 +925,35 @@ void _showTrainDetails(SectionTrain t) {
     if (onTime < 95) return kpiOrange;
     return kpiGreen;
   }
-}
 
-// --- Placeholder Pages ---
-class LiveMovementsPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Live Movements', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: _DashboardPageState.irPrimaryBlue,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Center(
-        child: Text(
-          'Detailed Live Movement Data',
-          style: TextStyle(fontSize: 24, color: _DashboardPageState.secondaryTextColor),
-        ),
-      ),
-    );
-  }
-}
+  void _performSearch(String query) {
+    if (query.isEmpty) return;
 
-class AiRecommendationsPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('AI Recommendations', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: _DashboardPageState.irPrimaryBlue,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Center(
-        child: Text(
-          'Predictive Analytics & Insights',
-          style: TextStyle(fontSize: 24, color: _DashboardPageState.secondaryTextColor),
-        ),
-      ),
-    );
-  }
-}
+    final lowerCaseQuery = query.toLowerCase().trim();
+    SectionTrain? foundTrain;
 
-class ReportsAnalyticsPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Reports & Analytics', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: _DashboardPageState.irPrimaryBlue,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-      ),
-      body: Center(
-        child: Text(
-          'Operational Reports & Trends',
-          style: TextStyle(fontSize: 24, color: _DashboardPageState.secondaryTextColor),
-        ),
-      ),
-    );
-  }
-}
-
-class ChatbotPage extends StatefulWidget {
-  @override
-  _ChatbotPageState createState() => _ChatbotPageState();
-}
-
-class _ChatbotPageState extends State<ChatbotPage> {
-  final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = [
-    {"sender": "bot", "text": "Hello! I am your AI assistant. How can I help you today?"},
-    {"sender": "bot", "text": "You can ask me about train statuses, route info, or current disruptions."},
-  ];
-
-  void _handleSend() {
-    if (_controller.text.isNotEmpty) {
-      String userMessage = _controller.text;
-      setState(() {
-        _messages.add({"sender": "user", "text": userMessage});
-        _controller.clear();
-      });
-      _getBotResponse(userMessage);
-    }
-  }
-
-  void _getBotResponse(String userMessage) {
-    String response = "I'm sorry, I don't understand that request. Please ask about trains, routes, or delays.";
-    if (userMessage.toLowerCase().contains("train")) {
-      response = "The latest status for Train 12295 is 'On Time' on the MAS-AJJ section.";
-    } else if (userMessage.toLowerCase().contains("delay")) {
-      response = "The current major delay is on the KPD-JTJ section affecting several express trains.";
-    } else if (userMessage.toLowerCase().contains("route")) {
-      response = "The main route from Chennai to Bangalore passes through Katpadi, Jolarpettai, and Salem.";
+    // Search by ID first, then by name containment
+    try {
+      foundTrain = sectionTrains.firstWhere((train) => train.id.toLowerCase() == lowerCaseQuery);
+    } catch (e) {
+      // If not found by ID, search by name
+      try {
+        foundTrain = sectionTrains.firstWhere((train) => train.name.toLowerCase().contains(lowerCaseQuery));
+      } catch (e) {
+        foundTrain = null;
+      }
     }
 
-    Timer(const Duration(milliseconds: 1000), () {
-      setState(() {
-        _messages.add({"sender": "bot", "text": response});
-      });
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: _DashboardPageState.irPrimaryBlue,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
+    if (foundTrain != null) {
+      _showTrainDetails(foundTrain);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Train with ID or name '$query' not found."),
+          backgroundColor: irMaroon,
         ),
-        title: const Text("AI Assistant", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: ListView.builder(
-              reverse: true,
-              padding: const EdgeInsets.all(16),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final message = _messages[_messages.length - 1 - index];
-                return Align(
-                  alignment: message['sender'] == 'user' ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    decoration: BoxDecoration(
-                      color: message['sender'] == 'user' ? _DashboardPageState.irPrimaryBlue : _DashboardPageState.cardColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      message['text']!,
-                      style: TextStyle(
-                        color: message['sender'] == 'user' ? Colors.white : _DashboardPageState.textColor,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-          const Divider(height: 1, color: Colors.black12),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _controller,
-                    decoration: InputDecoration(
-                      hintText: "Ask me anything...",
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(30),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: _DashboardPageState.dashboardBg,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-                    ),
-                    onSubmitted: (_) => _handleSend(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                FloatingActionButton(
-                  onPressed: _handleSend,
-                  backgroundColor: _DashboardPageState.irPrimaryBlue,
-                  child: const Icon(Icons.send, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 }
 

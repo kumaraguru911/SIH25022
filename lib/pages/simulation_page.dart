@@ -156,13 +156,17 @@ class _SimulationPageState extends State<SimulationPage> {
                 border: Border.all(color: Colors.grey.withOpacity(0.08), width: 1.2),
               ),
               child: Row(
-                children: [
-                  _kpiCard('Simulations Run', simulationsRun.toString(), Colors.green),
-                  SizedBox(width: 18),
-                  _kpiCard('Avg Delay', avgDelay.toStringAsFixed(1) + ' min', Colors.orange),
-                  SizedBox(width: 18),
-                  _kpiCard('Max Delay', maxDelay.toString() + ' min', Colors.red),
-                  Spacer(),
+                children: [Expanded(
+                    child: Row(
+                      children: [
+                        _kpiCard('Simulations Run', simulationsRun.toString(), Colors.green),
+                        SizedBox(width: 18),
+                        _kpiCard('Avg Delay', avgDelay.toStringAsFixed(1) + ' min', Colors.orange),
+                        SizedBox(width: 18),
+                        _kpiCard('Max Delay', maxDelay.toString() + ' min', Colors.red),
+                      ],
+                    ),
+                  ),
                   Icon(Icons.info_outline, color: Colors.grey[600]),
                   SizedBox(width: 6),
                   Text('All values are hypothetical', style: TextStyle(color: Colors.grey[700])),
