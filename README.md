@@ -35,20 +35,6 @@ Built with Flutter, the application boasts a professional, elite UI inspired by 
 
 ---
 
-## 📸 Screenshots
-
-*(Add screenshots of your application here to showcase the UI)*
-
-| Title Page | Main Dashboard |
-| :---: | :---: |
-| `[Screenshot of Title Page]` | `[Screenshot of Dashboard]` |
-
-| KPI Page | Simulation Lab |
-| :---: | :---: |
-| `[Screenshot of KPI Page]` | `[Screenshot of Simulation Page]` |
-
----
-
 ## 🛠️ Technologies & Architecture
 
 -   **Framework**: Flutter (Dart) for cross-platform development (Desktop, Web, Mobile).
